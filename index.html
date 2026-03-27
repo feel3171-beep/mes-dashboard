@@ -140,7 +140,7 @@ tr:hover td { background:rgba(91,141,239,.05); }
   <div class="nav-logo">C&C MES</div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('sales')">📋 영업 오더</button>
-    <button class="nav-tab" onclick="showPage('delivery')">🔔 납기변경 리스크</button>
+    <button class="nav-tab" onclick="showPage('delivery')">🔔 납기 리스크</button>
     <button class="nav-tab" onclick="showPage('production')">🏭 생산현황</button>
     <button class="nav-tab" onclick="showPage('purchase')">📦 구매/자재</button>
     <button class="nav-tab" onclick="showPage('qc')">🔬 품질(QC)</button>
@@ -180,13 +180,15 @@ tr:hover td { background:rgba(91,141,239,.05); }
 <div id="page-delivery" class="page">
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-label">납기 변경 건</div><div class="kpi-value kpi-red">18</div><div class="kpi-sub">최근 7일</div></div>
-    <div class="kpi"><div class="kpi-label">생산미반영</div><div class="kpi-value kpi-red">7</div><div class="kpi-sub">생산계획 미조정</div></div>
+    <div class="kpi"><div class="kpi-label">납기 위험</div><div class="kpi-value kpi-red">5</div><div class="kpi-sub">못맞출 가능성</div></div>
+    <div class="kpi"><div class="kpi-label">생산미반영</div><div class="kpi-value kpi-orange">7</div><div class="kpi-sub">생산계획 미조정</div></div>
     <div class="kpi"><div class="kpi-label">자재미입고</div><div class="kpi-value kpi-orange">5</div><div class="kpi-sub">입고 지연</div></div>
     <div class="kpi"><div class="kpi-label">QC여유부족</div><div class="kpi-value kpi-yellow">6</div><div class="kpi-sub">5일 미만</div></div>
   </div>
 
   <div class="sub-tabs">
     <button class="sub-tab active" onclick="showDeliveryTab('all')">전체</button>
+    <button class="sub-tab" onclick="showDeliveryTab('danger')" style="color:var(--red)">🚨 납기 위험</button>
     <button class="sub-tab" onclick="showDeliveryTab('prod')">🏭 생산 미반영</button>
     <button class="sub-tab" onclick="showDeliveryTab('mat')">📦 자재 미입고</button>
     <button class="sub-tab" onclick="showDeliveryTab('qc')">🔬 QC 여유 부족</button>
@@ -307,13 +309,13 @@ const ORDERS = [
 ];
 
 const DELIVERY_CHANGES = [
-  {so:"30001924",cust:"돌체앤가바나",item:"멜팅밤 로즈",orgDue:"04-15",newDue:"04-10",plan:"03-23",matOk:true,prodAdj:false,qcDays:18,type:"prod",reason:"고객 요청 납기 앞당김"},
-  {so:"30001262",cust:"릴리바이레드",item:"립글로우 틴트 05",orgDue:"04-05",newDue:"03-28",plan:"03-25",matOk:false,prodAdj:false,qcDays:3,type:"all",reason:"긴급 프로모션 대응"},
-  {so:"30001445",cust:"에스쁘아",item:"스킨핏 파우더 팩트",orgDue:"04-02",newDue:"03-28",plan:"03-24",matOk:true,prodAdj:false,qcDays:4,type:"qc",reason:"매장 오픈일 변경"},
-  {so:"30001789",cust:"이니스프리",item:"듀이 핏 팔레트",orgDue:"04-05",newDue:"03-30",plan:"03-26",matOk:false,prodAdj:false,qcDays:4,type:"all",reason:"시즌 론칭 앞당김"},
-  {so:"30001990",cust:"돌체앤가바나",item:"벨벳 무스 틴트",orgDue:"04-08",newDue:"03-31",plan:"03-27",matOk:false,prodAdj:true,qcDays:4,type:"mat",reason:"본사 스케줄 변경"},
-  {so:"30002789",cust:"클리오",item:"올데이 래쉬 마스카라 2nd",orgDue:"04-10",newDue:"04-03",plan:"03-28",matOk:true,prodAdj:false,qcDays:6,type:"prod",reason:"마케팅 캠페인 일정 변경"},
-  {so:"30002890",cust:"브이디엘",item:"컬러 파우더 벌크",orgDue:"04-08",newDue:"04-01",plan:"03-26",matOk:false,prodAdj:false,qcDays:6,type:"mat",reason:"중국 시장 출시일 변경"},
+  {so:"30001924",cust:"돌체앤가바나",item:"멜팅밤 로즈",qty:5000,orgDue:"04-15",newDue:"04-10",plan:"03-23",pct:5,matOk:true,prodAdj:false,qcDays:18,danger:false,reason:"고객 요청 납기 앞당김"},
+  {so:"30001262",cust:"릴리바이레드",item:"립글로우 틴트 05",qty:8000,orgDue:"04-05",newDue:"03-28",plan:"03-25",pct:40,matOk:false,prodAdj:false,qcDays:3,danger:true,reason:"긴급 프로모션 대응"},
+  {so:"30001445",cust:"에스쁘아",item:"스킨핏 파우더 팩트",qty:10000,orgDue:"04-02",newDue:"03-28",plan:"03-24",pct:0,matOk:true,prodAdj:false,qcDays:4,danger:true,reason:"매장 오픈일 변경"},
+  {so:"30001789",cust:"이니스프리",item:"듀이 핏 팔레트",qty:3000,orgDue:"04-05",newDue:"03-30",plan:"03-26",pct:0,matOk:false,prodAdj:false,qcDays:4,danger:true,reason:"시즌 론칭 앞당김"},
+  {so:"30001990",cust:"돌체앤가바나",item:"벨벳 무스 틴트",qty:5000,orgDue:"04-08",newDue:"03-31",plan:"03-27",pct:0,matOk:false,prodAdj:true,qcDays:4,danger:true,reason:"본사 스케줄 변경"},
+  {so:"30002789",cust:"클리오",item:"올데이 래쉬 마스카라 2nd",qty:20000,orgDue:"04-10",newDue:"04-03",plan:"03-28",pct:0,matOk:true,prodAdj:false,qcDays:6,danger:false,reason:"마케팅 캠페인 일정 변경"},
+  {so:"30002890",cust:"브이디엘",item:"컬러 파우더 벌크",qty:7000,orgDue:"04-08",newDue:"04-01",plan:"03-26",pct:30,matOk:false,prodAdj:false,qcDays:6,danger:true,reason:"중국 시장 출시일 변경"},
 ];
 
 // ===== PAGE NAV =====
@@ -419,32 +421,64 @@ function filterCards(){
 function showDeliveryTab(type){
   document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
   event.target.classList.add('active');
-  const filtered = type==='all' ? DELIVERY_CHANGES :
-    type==='prod' ? DELIVERY_CHANGES.filter(d=>!d.prodAdj) :
-    type==='mat' ? DELIVERY_CHANGES.filter(d=>!d.matOk) :
-    DELIVERY_CHANGES.filter(d=>d.qcDays<5);
-  renderDeliveryList(filtered);
+  let filtered;
+  if(type==='all') filtered = DELIVERY_CHANGES;
+  else if(type==='danger') filtered = DELIVERY_CHANGES.filter(d=>d.danger);
+  else if(type==='prod') filtered = DELIVERY_CHANGES.filter(d=>!d.prodAdj);
+  else if(type==='mat') filtered = DELIVERY_CHANGES.filter(d=>!d.matOk);
+  else filtered = DELIVERY_CHANGES.filter(d=>d.qcDays<5);
+  renderDeliveryList(filtered, type);
 }
 
-function renderDeliveryList(items){
+function renderDeliveryList(items, type){
   const el = document.getElementById('delivery-list');
-  el.innerHTML = '<h2>🔔 납기 변경 & 리스크 현황</h2>' + items.map(d=>{
+  const title = type==='danger' ? '🚨 납기 미달 위험 오더' : '🔔 납기 변경 & 리스크 현황';
+  const subtitle = type==='danger' ? '<p style="color:var(--dim);font-size:12px;margin:-8px 0 16px">납기를 못맞출 가능성이 높은 오더 — 자재 미입고, 생산 미착수, QC 여유 부족 등 복합 리스크</p>' : '';
+
+  el.innerHTML = `<h2>${title}</h2>${subtitle}` + items.map(d=>{
     const issues = [];
     if(!d.prodAdj) issues.push('🏭 생산계획 미조정');
     if(!d.matOk) issues.push('📦 자재 미입고');
     if(d.qcDays<5) issues.push('🔬 QC여유 '+d.qcDays+'일');
-    const cls = d.qcDays<5?'':'warn';
+    if(d.danger) issues.push('🚨 납기 위험');
+
+    // 납기까지 남은일수 계산 (mock)
+    const dueparts = d.newDue.split('-').map(Number);
+    const dueDate = new Date(2026, dueparts[0]-1, dueparts[1]);
+    const today = new Date(2026, 2, 27);
+    const daysLeft = Math.round((dueDate-today)/(1000*60*60*24));
+    const daysLabel = daysLeft<=0 ? '지남' : daysLeft+'일';
+    const daysColor = daysLeft<=3 ? 'var(--red)' : daysLeft<=7 ? 'var(--orange)' : 'var(--yellow)';
+
+    const isDanger = d.danger;
+    const cardBorder = isDanger ? 'border-left:4px solid var(--red);' : '';
+
     return `
-    <div class="alert-card ${cls}">
-      <div class="alert-title">${d.so} ${d.item} — ${d.cust}</div>
-      <div class="alert-desc">
-        납기변경: <span style="text-decoration:line-through;color:var(--dim)">${d.orgDue}</span> → <span style="color:var(--red);font-weight:600">${d.newDue}</span>
-        &nbsp;|&nbsp; 생산예정: ${d.plan} &nbsp;|&nbsp; 사유: ${d.reason}
+    <div class="alert-card" style="${cardBorder}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="alert-title">${d.so} ${d.item} — ${d.cust}</div>
+          <div class="alert-desc">
+            납기변경: <span style="text-decoration:line-through;color:var(--dim)">${d.orgDue}</span> → <span style="color:var(--red);font-weight:600">${d.newDue}</span>
+            &nbsp;|&nbsp; 생산예정: ${d.plan} &nbsp;|&nbsp; 수량: ${d.qty.toLocaleString()} EA &nbsp;|&nbsp; 진행: ${d.pct}%
+          </div>
+          <div style="font-size:12px;color:var(--dim);margin-top:4px">사유: ${d.reason}</div>
+        </div>
+        <div style="text-align:center;min-width:70px">
+          <div style="font-size:11px;color:var(--dim)">납기까지</div>
+          <div style="font-size:22px;font-weight:700;color:${daysColor}">${daysLabel}</div>
+        </div>
       </div>
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-        ${issues.map(i=>`<span class="badge badge-risk">${i}</span>`).join('')}
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        ${issues.map(i=>{
+          const color = i.includes('납기 위험')?'badge-risk':i.includes('미입고')?'badge-risk':i.includes('미조정')?'badge-wait':'badge-wait';
+          return `<span class="badge ${color}">${i}</span>`;
+        }).join('')}
         ${issues.length===0?'<span class="badge badge-done">✓ 정상</span>':''}
       </div>
+      ${isDanger ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:6px;font-size:12px;color:var(--red)">
+        ⚠️ <strong>조치 필요:</strong> ${!d.matOk?'자재 입고 확인 → ':''}${!d.prodAdj?'생산계획 재조정 → ':''}${d.qcDays<5?'긴급 QC 요청 → ':''}고객 선제 커뮤니케이션 필요
+      </div>` : ''}
     </div>`;
   }).join('');
 }
