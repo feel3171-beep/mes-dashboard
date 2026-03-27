@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C&C MES 오더 파이프라인 대시보드</title>
+<style>
+:root {
+  --bg: #0e1117; --card: #1a1d24; --card2: #262a33;
+  --text: #e6e6e6; --dim: #8b8fa3; --accent: #5b8def;
+  --green: #2ecc71; --yellow: #f1c40f; --red: #e74c3c; --orange: #e67e22;
+  --purple: #9b59b6; --cyan: #1abc9c; --pink: #e84393;
+  --border: #2d3139;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI','Noto Sans KR',sans-serif; }
+
+/* NAV */
+.nav { background:#14171e; border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; height:56px; position:sticky; top:0; z-index:100; }
+.nav-logo { font-size:20px; font-weight:700; color:var(--accent); margin-right:40px; }
+.nav-tabs { display:flex; gap:4px; }
+.nav-tab { padding:10px 20px; border-radius:8px 8px 0 0; cursor:pointer; color:var(--dim); font-size:14px; font-weight:500; border:none; background:none; transition:all .2s; }
+.nav-tab:hover { color:var(--text); background:rgba(91,141,239,.1); }
+.nav-tab.active { color:var(--accent); background:var(--card); border-bottom:2px solid var(--accent); }
+
+/* LAYOUT */
+.page { display:none; padding:24px; max-width:1400px; margin:0 auto; }
+.page.active { display:block; }
+
+/* KPI */
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
+.kpi { background:var(--card); border-radius:12px; padding:20px; text-align:center; border:1px solid var(--border); }
+.kpi-label { font-size:12px; color:var(--dim); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.kpi-value { font-size:32px; font-weight:700; }
+.kpi-sub { font-size:11px; color:var(--dim); margin-top:4px; }
+.kpi-green { color:var(--green); }
+.kpi-yellow { color:var(--yellow); }
+.kpi-red { color:var(--red); }
+.kpi-accent { color:var(--accent); }
+.kpi-purple { color:var(--purple); }
+
+/* SECTION */
+.section { background:var(--card); border-radius:12px; padding:24px; margin-bottom:24px; border:1px solid var(--border); }
+.section h2 { font-size:18px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.section h3 { font-size:15px; margin-bottom:12px; color:var(--dim); }
+
+/* FILTERS */
+.filters { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.filter-select { background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer; }
+.filter-select:focus { outline:none; border-color:var(--accent); }
+
+/* PIPELINE CARD */
+.pipeline-card { background:var(--card2); border-radius:12px; padding:20px; margin-bottom:16px; border:1px solid var(--border); transition:all .2s; }
+.pipeline-card:hover { border-color:var(--accent); transform:translateY(-1px); }
+.pipeline-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.pipeline-title { font-size:15px; font-weight:600; }
+.pipeline-meta { display:flex; gap:16px; font-size:12px; color:var(--dim); margin-bottom:16px; flex-wrap:wrap; }
+.pipeline-meta span { display:flex; align-items:center; gap:4px; }
+.badge { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-progress { background:rgba(91,141,239,.2); color:var(--accent); }
+.badge-wait { background:rgba(241,196,15,.2); color:var(--yellow); }
+.badge-done { background:rgba(46,204,113,.2); color:var(--green); }
+.badge-risk { background:rgba(231,76,60,.2); color:var(--red); }
+
+/* STAGES */
+.stages { display:flex; align-items:center; gap:0; margin-bottom:12px; }
+.stage { flex:1; text-align:center; padding:12px 8px; border-radius:10px; position:relative; min-width:100px; }
+.stage-done { background:rgba(46,204,113,.15); border:1px solid rgba(46,204,113,.3); }
+.stage-active { background:rgba(91,141,239,.15); border:1px solid var(--accent); box-shadow:0 0 12px rgba(91,141,239,.2); }
+.stage-pending { background:var(--card); border:1px solid var(--border); }
+.stage-risk { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.3); }
+.stage-icon { font-size:16px; margin-bottom:4px; }
+.stage-name { font-size:12px; font-weight:600; margin-bottom:2px; }
+.stage-info { font-size:11px; color:var(--dim); }
+.stage-date { font-size:10px; color:var(--dim); margin-top:2px; }
+.stage-arrow { color:var(--dim); font-size:18px; margin:0 2px; flex-shrink:0; }
+
+/* PROGRESS */
+.progress-bar { height:6px; background:var(--card); border-radius:3px; overflow:hidden; margin-top:8px; }
+.progress-fill { height:100%; border-radius:3px; transition:width .3s; }
+.progress-row { display:flex; align-items:center; gap:8px; }
+.progress-label { font-size:11px; color:var(--dim); white-space:nowrap; }
+
+/* TABLE */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:10px 12px; color:var(--dim); font-weight:500; border-bottom:1px solid var(--border); font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+td { padding:10px 12px; border-bottom:1px solid rgba(45,49,57,.5); }
+tr:hover td { background:rgba(91,141,239,.05); }
+.risk-high { color:var(--red); font-weight:600; }
+.risk-mid { color:var(--orange); font-weight:600; }
+.risk-low { color:var(--green); }
+
+/* CHART placeholder */
+.chart-bar { display:flex; align-items:end; gap:6px; height:200px; padding:20px 0; }
+.bar-col { display:flex; flex-direction:column; align-items:center; flex:1; }
+.bar { width:100%; border-radius:4px 4px 0 0; min-height:4px; transition:height .3s; }
+.bar-label { font-size:10px; color:var(--dim); margin-top:6px; text-align:center; }
+.bar-value { font-size:10px; color:var(--text); margin-bottom:4px; }
+
+/* DETAIL PANEL */
+.detail-panel { display:none; background:var(--card); border:1px solid var(--accent); border-radius:8px; padding:16px; margin-top:8px; }
+.detail-panel.open { display:block; }
+.detail-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.detail-row:last-child { border:none; }
+.change-log { margin-top:12px; }
+.change-item { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12px; }
+.change-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+/* GANTT-like */
+.gantt-row { display:flex; align-items:center; margin-bottom:8px; }
+.gantt-label { width:200px; font-size:12px; flex-shrink:0; }
+.gantt-track { flex:1; height:28px; background:var(--card); border-radius:4px; position:relative; overflow:hidden; }
+.gantt-bar { position:absolute; height:100%; border-radius:4px; display:flex; align-items:center; padding:0 8px; font-size:10px; color:#fff; white-space:nowrap; }
+
+/* TABS inside section */
+.sub-tabs { display:flex; gap:4px; margin-bottom:16px; }
+.sub-tab { padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer; background:var(--card2); color:var(--dim); border:1px solid var(--border); }
+.sub-tab.active { background:rgba(91,141,239,.15); color:var(--accent); border-color:var(--accent); }
+
+/* ALERT CARD */
+.alert-card { background:var(--card2); border-left:4px solid var(--red); border-radius:0 8px 8px 0; padding:14px 16px; margin-bottom:10px; }
+.alert-card.warn { border-left-color:var(--orange); }
+.alert-card.info { border-left-color:var(--accent); }
+.alert-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.alert-desc { font-size:12px; color:var(--dim); }
+
+/* RESPONSIVE */
+@media(max-width:768px) {
+  .stages { flex-wrap:wrap; }
+  .stage { min-width:80px; }
+  .kpi-row { grid-template-columns:repeat(2,1fr); }
+  .pipeline-meta { flex-direction:column; gap:4px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">C&C MES</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('sales')">📋 영업 오더</button>
+    <button class="nav-tab" onclick="showPage('delivery')">🔔 납기변경 리스크</button>
+    <button class="nav-tab" onclick="showPage('production')">🏭 생산현황</button>
+    <button class="nav-tab" onclick="showPage('purchase')">📦 구매/자재</button>
+    <button class="nav-tab" onclick="showPage('qc')">🔬 품질(QC)</button>
+  </div>
+</nav>
+
+<!-- ============ PAGE 1: 영업 오더 ============ -->
+<div id="page-sales" class="page active">
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">진행 오더</div><div class="kpi-value kpi-accent">127</div><div class="kpi-sub">🔵 진행 84 · ⏳ 대기 43</div></div>
+    <div class="kpi"><div class="kpi-label">계획 수량</div><div class="kpi-value">1,284,500</div><div class="kpi-sub">EA</div></div>
+    <div class="kpi"><div class="kpi-label">완료 수량</div><div class="kpi-value kpi-green">876,230</div><div class="kpi-sub">EA</div></div>
+    <div class="kpi"><div class="kpi-label">달성률</div><div class="kpi-value kpi-yellow">68.2%</div><div class="kpi-sub">목표 100%</div></div>
+    <div class="kpi"><div class="kpi-label">납기 리스크</div><div class="kpi-value kpi-red">12</div><div class="kpi-sub">QC 여유 부족</div></div>
+  </div>
+
+  <div class="filters">
+    <select class="filter-select" id="f-cust" onchange="filterCards()">
+      <option value="">전체 고객</option>
+      <option>돌체앤가바나</option><option>주식회사피플앤코</option><option>브이디엘</option>
+      <option>릴리바이레드</option><option>에스쁘아</option><option>클리오</option><option>이니스프리</option>
+    </select>
+    <select class="filter-select" id="f-status" onchange="filterCards()">
+      <option value="">전체 상태</option>
+      <option value="진행중">진행중</option><option value="대기">대기</option><option value="완료">완료</option><option value="리스크">리스크</option>
+    </select>
+    <select class="filter-select" id="f-factory" onchange="filterCards()">
+      <option value="">전체 공장</option>
+      <option>퍼플</option><option>그린</option><option>제3공장</option>
+    </select>
+  </div>
+
+  <div id="pipeline-cards"></div>
+</div>
+
+<!-- ============ PAGE 2: 납기변경 리스크 ============ -->
+<div id="page-delivery" class="page">
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">납기 변경 건</div><div class="kpi-value kpi-red">18</div><div class="kpi-sub">최근 7일</div></div>
+    <div class="kpi"><div class="kpi-label">생산미반영</div><div class="kpi-value kpi-red">7</div><div class="kpi-sub">생산계획 미조정</div></div>
+    <div class="kpi"><div class="kpi-label">자재미입고</div><div class="kpi-value kpi-orange">5</div><div class="kpi-sub">입고 지연</div></div>
+    <div class="kpi"><div class="kpi-label">QC여유부족</div><div class="kpi-value kpi-yellow">6</div><div class="kpi-sub">5일 미만</div></div>
+  </div>
+
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="showDeliveryTab('all')">전체</button>
+    <button class="sub-tab" onclick="showDeliveryTab('prod')">🏭 생산 미반영</button>
+    <button class="sub-tab" onclick="showDeliveryTab('mat')">📦 자재 미입고</button>
+    <button class="sub-tab" onclick="showDeliveryTab('qc')">🔬 QC 여유 부족</button>
+  </div>
+
+  <div class="section" id="delivery-list"></div>
+</div>
+
+<!-- ============ PAGE 3: 생산현황 ============ -->
+<div id="page-production" class="page">
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">금일 생산</div><div class="kpi-value kpi-green">372,404</div><div class="kpi-sub">목표 858,799</div></div>
+    <div class="kpi"><div class="kpi-label">달성률</div><div class="kpi-value kpi-yellow">43.4%</div><div class="kpi-sub">전일 대비 +2.1%</div></div>
+    <div class="kpi"><div class="kpi-label">포장 완료</div><div class="kpi-value">366,802</div><div class="kpi-sub">951,563 계획</div></div>
+    <div class="kpi"><div class="kpi-label">투입 인원</div><div class="kpi-value kpi-accent">616</div><div class="kpi-sub">인당 8.3h</div></div>
+    <div class="kpi"><div class="kpi-label">시간당 생산성</div><div class="kpi-value kpi-purple">143.7</div><div class="kpi-sub">개/h</div></div>
+  </div>
+
+  <div class="section">
+    <h2>🏭 공장별 생산현황</h2>
+    <div id="factory-cards"></div>
+  </div>
+
+  <div class="section">
+    <h2>📊 주간 생산 추이</h2>
+    <div class="chart-bar" id="weekly-chart"></div>
+  </div>
+</div>
+
+<!-- ============ PAGE 4: 구매/자재 ============ -->
+<div id="page-purchase" class="page">
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">발주 대기</div><div class="kpi-value kpi-red">23</div><div class="kpi-sub">미발주 자재</div></div>
+    <div class="kpi"><div class="kpi-label">입고 지연</div><div class="kpi-value kpi-orange">8</div><div class="kpi-sub">예정일 초과</div></div>
+    <div class="kpi"><div class="kpi-label">재고 부족 예상</div><div class="kpi-value kpi-yellow">15</div><div class="kpi-sub">7일 이내</div></div>
+    <div class="kpi"><div class="kpi-label">입고 완료율</div><div class="kpi-value kpi-green">87.3%</div><div class="kpi-sub">이번 주</div></div>
+  </div>
+
+  <div class="section">
+    <h2>📦 입고 지연 자재</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>자재코드</th><th>자재명</th><th>수주#</th><th>고객</th><th>예정일</th><th>지연일</th><th>상태</th></tr>
+        <tr><td>RM-20145</td><td>히알루론산 원료</td><td>30001924</td><td>돌체앤가바나</td><td>03-20</td><td class="risk-high">7일</td><td><span class="badge badge-risk">지연</span></td></tr>
+        <tr><td>RM-18923</td><td>티타늄디옥사이드</td><td>30000478</td><td>브이디엘</td><td>03-22</td><td class="risk-high">5일</td><td><span class="badge badge-risk">지연</span></td></tr>
+        <tr><td>PM-30521</td><td>립스틱 용기 15ml</td><td>30001262</td><td>릴리바이레드</td><td>03-24</td><td class="risk-mid">3일</td><td><span class="badge badge-wait">입고중</span></td></tr>
+        <tr><td>RM-21087</td><td>카나우바왁스</td><td>30001445</td><td>에스쁘아</td><td>03-25</td><td class="risk-mid">2일</td><td><span class="badge badge-wait">입고중</span></td></tr>
+        <tr><td>PM-28744</td><td>쿠션 케이스 블랙</td><td>30001567</td><td>클리오</td><td>03-26</td><td class="risk-mid">1일</td><td><span class="badge badge-wait">입고중</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>⚠️ 재고 부족 예상 (7일 이내)</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>자재코드</th><th>자재명</th><th>현재고</th><th>주간소요</th><th>잔여일</th><th>위험도</th></tr>
+        <tr><td>RM-20145</td><td>히알루론산 원료</td><td>120kg</td><td>250kg</td><td class="risk-high">3.4일</td><td><span class="badge badge-risk">긴급</span></td></tr>
+        <tr><td>PM-30521</td><td>립스틱 용기 15ml</td><td>8,500개</td><td>15,000개</td><td class="risk-high">4.0일</td><td><span class="badge badge-risk">긴급</span></td></tr>
+        <tr><td>RM-19876</td><td>마이카 분말</td><td>45kg</td><td>60kg</td><td class="risk-mid">5.3일</td><td><span class="badge badge-wait">주의</span></td></tr>
+        <tr><td>PM-28744</td><td>쿠션 케이스 블랙</td><td>3,200개</td><td>5,000개</td><td class="risk-mid">4.5일</td><td><span class="badge badge-wait">주의</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PAGE 5: 품질(QC) ============ -->
+<div id="page-qc" class="page">
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">금일 검사</div><div class="kpi-value kpi-accent">45</div><div class="kpi-sub">건</div></div>
+    <div class="kpi"><div class="kpi-label">합격률</div><div class="kpi-value kpi-green">96.8%</div><div class="kpi-sub">목표 98%</div></div>
+    <div class="kpi"><div class="kpi-label">불합격</div><div class="kpi-value kpi-red">3</div><div class="kpi-sub">건</div></div>
+    <div class="kpi"><div class="kpi-label">긴급 검사 대기</div><div class="kpi-value kpi-red">8</div><div class="kpi-sub">QC 여유 부족</div></div>
+  </div>
+
+  <div class="section">
+    <h2>🚨 긴급 품질검사 요청 리스트</h2>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:16px;">충전일 ~ 납기일 간격이 5일 미만으로 정상 QC 불가한 오더</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>수주#</th><th>고객</th><th>품명</th><th>수량</th><th>충전일</th><th>납기일</th><th>QC여유</th><th>조치</th></tr>
+        <tr><td>30001924</td><td>돌체앤가바나</td><td>멜팅밤 로즈</td><td>5,000</td><td>03-23</td><td>03-26</td><td class="risk-high">3일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30001262</td><td>릴리바이레드</td><td>립글로우 틴트 05</td><td>8,000</td><td>03-25</td><td>03-28</td><td class="risk-high">3일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30000478</td><td>브이디엘</td><td>글로우 세럼 파운데이션</td><td>14,000</td><td>03-22</td><td>03-26</td><td class="risk-high">4일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30001445</td><td>에스쁘아</td><td>스킨핏 파우더 팩트</td><td>10,000</td><td>03-24</td><td>03-28</td><td class="risk-high">4일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30001567</td><td>클리오</td><td>올데이 래쉬 마스카라</td><td>20,000</td><td>03-20</td><td>03-24</td><td class="risk-high">4일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30001789</td><td>이니스프리</td><td>듀이 핏 팔레트</td><td>3,000</td><td>03-26</td><td>03-30</td><td class="risk-high">4일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30001890</td><td>씨피씨피</td><td>컬러 마스터 450g</td><td>4,000</td><td>03-21</td><td>03-25</td><td class="risk-high">4일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+        <tr><td>30001990</td><td>돌체앤가바나</td><td>벨벳 무스 틴트</td><td>5,000</td><td>03-27</td><td>03-31</td><td class="risk-high">4일</td><td><span class="badge badge-risk">긴급QC</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📊 최근 불량률 추이</h2>
+    <div class="chart-bar" id="defect-chart"></div>
+  </div>
+</div>
+
+<script>
+// ===== MOCK DATA =====
+const ORDERS = [
+  {so:"30001924",cust:"돌체앤가바나",item:"멜팅밤 로즈",qty:5000,out:252,flow:"포장",line:"PP06",fac:"퍼플",plan:"03-23",due:"04-10",orgDue:"04-15",status:"진행중",matOk:true,pct:5},
+  {so:"30000478",cust:"브이디엘",item:"글로우 세럼 파운데이션",qty:14000,out:14000,flow:"포장",line:"GP01",fac:"그린",plan:"03-15",due:"03-28",orgDue:"03-28",status:"완료",matOk:true,pct:100},
+  {so:"30001262",cust:"릴리바이레드",item:"립글로우 틴트 05",qty:8000,out:3200,flow:"포장",line:"PP05",fac:"퍼플",plan:"03-25",due:"03-28",orgDue:"04-05",status:"리스크",matOk:false,pct:40},
+  {so:"30001445",cust:"에스쁘아",item:"스킨핏 파우더 팩트",qty:10000,out:0,flow:"포장",line:"PP04",fac:"퍼플",plan:"03-24",due:"03-28",orgDue:"04-02",status:"대기",matOk:true,pct:0},
+  {so:"30001567",cust:"클리오",item:"올데이 래쉬 마스카라",qty:20000,out:15400,flow:"포장",line:"PP02",fac:"퍼플",plan:"03-20",due:"03-31",orgDue:"03-31",status:"진행중",matOk:true,pct:77},
+  {so:"30001789",cust:"이니스프리",item:"듀이 핏 팔레트",qty:3000,out:0,flow:"포장",line:"GP03",fac:"그린",plan:"03-26",due:"03-30",orgDue:"04-05",status:"리스크",matOk:false,pct:0},
+  {so:"30001890",cust:"씨피씨피",item:"컬러 마스터 450g",qty:4000,out:4000,flow:"충전",line:"MC30",fac:"제3공장",plan:"03-21",due:"04-05",orgDue:"04-05",status:"완료",matOk:true,pct:100},
+  {so:"30001990",cust:"돌체앤가바나",item:"벨벳 무스 틴트",qty:5000,out:0,flow:"포장",line:"PP04",fac:"퍼플",plan:"03-27",due:"03-31",orgDue:"04-08",status:"리스크",matOk:false,pct:0},
+  {so:"30002010",cust:"브이디엘",item:"치크스테인 블러셔 07",qty:8000,out:6200,flow:"포장",line:"GP02",fac:"그린",plan:"03-18",due:"04-02",orgDue:"04-02",status:"진행중",matOk:true,pct:78},
+  {so:"30002125",cust:"클리오",item:"러브빔 치크밤",qty:10000,out:0,flow:"포장",line:"PP02",fac:"퍼플",plan:"03-28",due:"04-10",orgDue:"04-10",status:"대기",matOk:true,pct:0},
+  {so:"30002230",cust:"돌체앤가바나",item:"파운데이션 벌크 800g",qty:6000,out:3600,flow:"충전",line:"MCBD6",fac:"제3공장",plan:"03-19",due:"04-01",orgDue:"04-01",status:"진행중",matOk:true,pct:60},
+  {so:"30002345",cust:"에스쁘아",item:"립밤 벌크 300g",qty:5000,out:5000,flow:"충전",line:"MC56",fac:"제3공장",plan:"03-16",due:"03-30",orgDue:"03-30",status:"완료",matOk:true,pct:100},
+  {so:"30002456",cust:"릴리바이레드",item:"쿠션 퍼프 세트",qty:12000,out:4800,flow:"제조",line:"PM26",fac:"퍼플",plan:"03-22",due:"04-05",orgDue:"04-05",status:"진행중",matOk:true,pct:40},
+  {so:"30002567",cust:"이니스프리",item:"타정 아이섀도우 4g",qty:15000,out:0,flow:"타정",line:"MC259",fac:"제3공장",plan:"03-29",due:"04-12",orgDue:"04-12",status:"대기",matOk:true,pct:0},
+  {so:"30002678",cust:"씨피씨피",item:"씨피 듀 필름 틴트 R",qty:7000,out:2100,flow:"포장",line:"GP02",fac:"그린",plan:"03-24",due:"04-08",orgDue:"04-08",status:"진행중",matOk:true,pct:30},
+];
+
+const DELIVERY_CHANGES = [
+  {so:"30001924",cust:"돌체앤가바나",item:"멜팅밤 로즈",orgDue:"04-15",newDue:"04-10",plan:"03-23",matOk:true,prodAdj:false,qcDays:18,type:"prod",reason:"고객 요청 납기 앞당김"},
+  {so:"30001262",cust:"릴리바이레드",item:"립글로우 틴트 05",orgDue:"04-05",newDue:"03-28",plan:"03-25",matOk:false,prodAdj:false,qcDays:3,type:"all",reason:"긴급 프로모션 대응"},
+  {so:"30001445",cust:"에스쁘아",item:"스킨핏 파우더 팩트",orgDue:"04-02",newDue:"03-28",plan:"03-24",matOk:true,prodAdj:false,qcDays:4,type:"qc",reason:"매장 오픈일 변경"},
+  {so:"30001789",cust:"이니스프리",item:"듀이 핏 팔레트",orgDue:"04-05",newDue:"03-30",plan:"03-26",matOk:false,prodAdj:false,qcDays:4,type:"all",reason:"시즌 론칭 앞당김"},
+  {so:"30001990",cust:"돌체앤가바나",item:"벨벳 무스 틴트",orgDue:"04-08",newDue:"03-31",plan:"03-27",matOk:false,prodAdj:true,qcDays:4,type:"mat",reason:"본사 스케줄 변경"},
+  {so:"30002789",cust:"클리오",item:"올데이 래쉬 마스카라 2nd",orgDue:"04-10",newDue:"04-03",plan:"03-28",matOk:true,prodAdj:false,qcDays:6,type:"prod",reason:"마케팅 캠페인 일정 변경"},
+  {so:"30002890",cust:"브이디엘",item:"컬러 파우더 벌크",orgDue:"04-08",newDue:"04-01",plan:"03-26",matOk:false,prodAdj:false,qcDays:6,type:"mat",reason:"중국 시장 출시일 변경"},
+];
+
+// ===== PAGE NAV =====
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ===== SALES PAGE =====
+function renderPipelineCards(orders){
+  const container = document.getElementById('pipeline-cards');
+  container.innerHTML = orders.map(o => {
+    const badgeCls = o.status==='완료'?'badge-done':o.status==='리스크'?'badge-risk':o.status==='대기'?'badge-wait':'badge-progress';
+    const qcStart = addDays(o.plan,1);
+    const qcEnd = addDays(o.plan,5);
+    const shipDate = addDays(o.plan,6);
+
+    const matDone = o.matOk;
+    const prodActive = o.pct>0 && o.pct<100;
+    const prodDone = o.pct>=100;
+
+    return `
+    <div class="pipeline-card" data-cust="${o.cust}" data-status="${o.status}" data-fac="${o.fac}" onclick="toggleDetail('${o.so}')">
+      <div class="pipeline-header">
+        <div>
+          <div class="pipeline-title">${o.so} ${o.item}</div>
+          <div class="pipeline-meta">
+            <span>🏢 ${o.cust}</span>
+            <span>🏭 ${o.fac}</span>
+            <span>🔧 ${o.flow} · ${o.line}</span>
+            <span>📦 ${o.qty.toLocaleString()} EA</span>
+          </div>
+        </div>
+        <span class="badge ${badgeCls}">${o.status}</span>
+      </div>
+      <div class="stages">
+        <div class="stage stage-done"><div class="stage-icon">📋</div><div class="stage-name">발주</div><div class="stage-info">✓ 완료</div></div>
+        <div class="stage-arrow">→</div>
+        <div class="stage ${matDone?'stage-done':'stage-risk'}"><div class="stage-icon">📦</div><div class="stage-name">자재</div><div class="stage-info">${matDone?'✓ 완료':'⚠ 미입고'}</div></div>
+        <div class="stage-arrow">→</div>
+        <div class="stage ${prodDone?'stage-done':prodActive?'stage-active':'stage-pending'}"><div class="stage-icon">⚙️</div><div class="stage-name">${o.flow}</div><div class="stage-info">${o.out.toLocaleString()}/${o.qty.toLocaleString()}</div><div class="stage-date">${o.plan} ${prodDone?'(완료)':'(예정)'}</div></div>
+        <div class="stage-arrow">→</div>
+        <div class="stage ${prodDone?'stage-active':'stage-pending'}"><div class="stage-icon">🔬</div><div class="stage-name">QC</div><div class="stage-info">${prodDone?'검사중':'대기'}</div><div class="stage-date">${qcStart}~${qcEnd}</div></div>
+        <div class="stage-arrow">→</div>
+        <div class="stage stage-pending"><div class="stage-icon">🚚</div><div class="stage-name">출고</div><div class="stage-info">${o.due}</div><div class="stage-date">납기: ${o.due}</div></div>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">진행률</span>
+        <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${o.pct}%;background:${o.pct>=100?'var(--green)':o.pct>50?'var(--accent)':'var(--yellow)'}"></div></div>
+        <span class="progress-label" style="color:${o.pct>=100?'var(--green)':'var(--accent)'}">${o.pct}%</span>
+      </div>
+      <div class="detail-panel" id="detail-${o.so}">
+        <h3 style="color:var(--accent);margin-bottom:12px;">📋 상세 정보</h3>
+        <div class="detail-row"><span>수주번호</span><span>${o.so}</span></div>
+        <div class="detail-row"><span>고객</span><span>${o.cust}</span></div>
+        <div class="detail-row"><span>품명</span><span>${o.item}</span></div>
+        <div class="detail-row"><span>공정</span><span>${o.flow} (${o.line})</span></div>
+        <div class="detail-row"><span>계획수량</span><span>${o.qty.toLocaleString()} EA</span></div>
+        <div class="detail-row"><span>완료수량</span><span>${o.out.toLocaleString()} EA</span></div>
+        <div class="detail-row"><span>충전/생산일</span><span>${o.plan}</span></div>
+        <div class="detail-row"><span>QC기간</span><span>${qcStart} ~ ${qcEnd} (5일)</span></div>
+        <div class="detail-row"><span>출고예정</span><span>${shipDate}</span></div>
+        <div class="detail-row"><span>원래 납기</span><span>${o.orgDue}</span></div>
+        <div class="detail-row"><span>현재 납기</span><span style="color:${o.due!==o.orgDue?'var(--red)':'var(--text)'}">${o.due} ${o.due!==o.orgDue?'(변경됨)':''}</span></div>
+        ${o.due!==o.orgDue?`
+        <div class="change-log">
+          <h3 style="color:var(--orange);">🔔 변경 이력</h3>
+          <div class="change-item"><div class="change-dot" style="background:var(--dim)"></div><span style="color:var(--dim)">03-15</span> 원래 납기 설정: ${o.orgDue}</div>
+          <div class="change-item"><div class="change-dot" style="background:var(--orange)"></div><span style="color:var(--orange)">03-20</span> 납기 변경: ${o.orgDue} → ${o.due} (고객 요청)</div>
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDetail(so){
+  const panel = document.getElementById('detail-'+so);
+  panel.classList.toggle('open');
+}
+
+function addDays(dateStr, days){
+  const [m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(2026, m-1, d+days);
+  return `${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function filterCards(){
+  const cust = document.getElementById('f-cust').value;
+  const status = document.getElementById('f-status').value;
+  const fac = document.getElementById('f-factory').value;
+  const filtered = ORDERS.filter(o => {
+    if(cust && o.cust !== cust) return false;
+    if(status && o.status !== status) return false;
+    if(fac && o.fac !== fac) return false;
+    return true;
+  });
+  renderPipelineCards(filtered);
+}
+
+// ===== DELIVERY PAGE =====
+function showDeliveryTab(type){
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  const filtered = type==='all' ? DELIVERY_CHANGES :
+    type==='prod' ? DELIVERY_CHANGES.filter(d=>!d.prodAdj) :
+    type==='mat' ? DELIVERY_CHANGES.filter(d=>!d.matOk) :
+    DELIVERY_CHANGES.filter(d=>d.qcDays<5);
+  renderDeliveryList(filtered);
+}
+
+function renderDeliveryList(items){
+  const el = document.getElementById('delivery-list');
+  el.innerHTML = '<h2>🔔 납기 변경 & 리스크 현황</h2>' + items.map(d=>{
+    const issues = [];
+    if(!d.prodAdj) issues.push('🏭 생산계획 미조정');
+    if(!d.matOk) issues.push('📦 자재 미입고');
+    if(d.qcDays<5) issues.push('🔬 QC여유 '+d.qcDays+'일');
+    const cls = d.qcDays<5?'':'warn';
+    return `
+    <div class="alert-card ${cls}">
+      <div class="alert-title">${d.so} ${d.item} — ${d.cust}</div>
+      <div class="alert-desc">
+        납기변경: <span style="text-decoration:line-through;color:var(--dim)">${d.orgDue}</span> → <span style="color:var(--red);font-weight:600">${d.newDue}</span>
+        &nbsp;|&nbsp; 생산예정: ${d.plan} &nbsp;|&nbsp; 사유: ${d.reason}
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        ${issues.map(i=>`<span class="badge badge-risk">${i}</span>`).join('')}
+        ${issues.length===0?'<span class="badge badge-done">✓ 정상</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== PRODUCTION PAGE =====
+function renderFactoryCards(){
+  const facs = [
+    {name:"퍼플",prod:81706,plan:247957,pct:33.0,pack:119857,packPlan:466560,people:136,h:1082,uph:75.5},
+    {name:"그린",prod:122873,plan:348362,pct:35.3,pack:98917,packPlan:217267,people:129,h:1032,uph:119.1},
+    {name:"제3공장",prod:167825,plan:262480,pct:63.9,pack:148028,packPlan:267736,people:60,h:479,uph:350.7},
+  ];
+  document.getElementById('factory-cards').innerHTML = facs.map(f=>`
+    <div class="pipeline-card">
+      <div class="pipeline-header">
+        <div class="pipeline-title">🏭 ${f.name}</div>
+        <span class="badge ${f.pct>50?'badge-progress':'badge-risk'}">${f.pct}%</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px">
+        <div>
+          <div style="color:var(--dim);font-size:11px;margin-bottom:4px">생산</div>
+          <div><strong>${f.prod.toLocaleString()}</strong> / ${f.plan.toLocaleString()} EA</div>
+          <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:${f.pct}%;background:${f.pct>50?'var(--green)':'var(--yellow)'}"></div></div>
+        </div>
+        <div>
+          <div style="color:var(--dim);font-size:11px;margin-bottom:4px">포장</div>
+          <div><strong>${f.pack.toLocaleString()}</strong> / ${f.packPlan.toLocaleString()} EA</div>
+          <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:${(f.pack/f.packPlan*100).toFixed(0)}%;background:var(--accent)"></div></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:20px;font-size:12px;color:var(--dim)">
+        <span>👷 ${f.people}명</span>
+        <span>⏱ ${f.h}h</span>
+        <span>⚡ ${f.uph}개/h</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== WEEKLY CHART =====
+function renderWeeklyChart(){
+  const data = [
+    {week:"W10",val:285000},{week:"W11",val:312000},{week:"W12",val:298000},
+    {week:"W13",val:372404},{week:"W14",val:0}
+  ];
+  const max = Math.max(...data.map(d=>d.val));
+  document.getElementById('weekly-chart').innerHTML = data.map(d=>`
+    <div class="bar-col">
+      <div class="bar-value">${d.val>0?(d.val/1000).toFixed(0)+'K':'-'}</div>
+      <div class="bar" style="height:${d.val>0?d.val/max*160:4}px;background:${d.week==='W13'?'var(--accent)':'rgba(91,141,239,.4)'}"></div>
+      <div class="bar-label">${d.week}</div>
+    </div>
+  `).join('');
+}
+
+// ===== DEFECT CHART =====
+function renderDefectChart(){
+  const data = [
+    {day:"03-21",val:2.1},{day:"03-22",val:1.8},{day:"03-23",val:3.2},
+    {day:"03-24",val:2.5},{day:"03-25",val:1.9},{day:"03-26",val:2.8},{day:"03-27",val:1.5}
+  ];
+  const max = 5;
+  document.getElementById('defect-chart').innerHTML = data.map(d=>`
+    <div class="bar-col">
+      <div class="bar-value">${d.val}%</div>
+      <div class="bar" style="height:${d.val/max*160}px;background:${d.val>2.5?'var(--red)':d.val>2?'var(--orange)':'var(--green)'}"></div>
+      <div class="bar-label">${d.day}</div>
+    </div>
+  `).join('');
+}
+
+// ===== INIT =====
+renderPipelineCards(ORDERS);
+renderDeliveryList(DELIVERY_CHANGES);
+renderFactoryCards();
+renderWeeklyChart();
+renderDefectChart();
+</script>
+</body>
+</html>
